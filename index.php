@@ -682,9 +682,13 @@ while ($row = $result->fetch_assoc()) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
-// Register custom HTML-source button
 const icons = Quill.import('ui/icons');
 icons['html-source'] = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M14.6 16.6l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4zm-5.2 0L4.8 12l4.6-4.6L8 6 2 12l6 6 1.4-1.4z"/></svg>';
+
+let htmlMode = false;
+const contentInput = document.getElementById('contentInput');
+const htmlEditor   = document.getElementById('htmlEditor');
+const quillEl      = document.getElementById('quillEditor');
 
 const quill = new Quill('#quillEditor', {
     theme: 'snow',
@@ -701,20 +705,19 @@ const quill = new Quill('#quillEditor', {
             ],
             handlers: {
                 'html-source': function() {
-                    const quillEl   = document.getElementById('quillEditor');
-                    const htmlEl    = document.getElementById('htmlEditor');
-                    const isHtml    = htmlEl.style.display !== 'none';
-                    if (isHtml) {
-                        // Switch back to WYSIWYG
-                        quill.root.innerHTML = htmlEl.value;
-                        htmlEl.style.display = 'none';
-                        quillEl.style.display = '';
-                        contentInput.value = htmlEl.value === '<p><br></p>' ? '' : htmlEl.value;
-                    } else {
-                        // Switch to HTML source
-                        htmlEl.value = quill.root.innerHTML;
+                    htmlMode = !htmlMode;
+                    if (htmlMode) {
+                        // Visual → HTML: export Quill content to textarea
+                        htmlEditor.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+                        contentInput.value = htmlEditor.value;
                         quillEl.style.display = 'none';
-                        htmlEl.style.display = 'block';
+                        htmlEditor.style.display = 'block';
+                    } else {
+                        // HTML → Visual: load textarea into Quill for display only
+                        // contentInput already holds the raw HTML from the textarea
+                        quill.root.innerHTML = htmlEditor.value;
+                        htmlEditor.style.display = 'none';
+                        quillEl.style.display = '';
                     }
                 }
             }
@@ -726,17 +729,23 @@ const quill = new Quill('#quillEditor', {
 quill.root.innerHTML = <?= json_encode($editGallery['content']) ?>;
 <?php endif; ?>
 
-const contentInput = document.getElementById('contentInput');
-const htmlEditor   = document.getElementById('htmlEditor');
-
-// Sync from WYSIWYG
+// In visual mode: sync Quill → contentInput
 quill.on('text-change', function() {
-    contentInput.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+    if (!htmlMode) {
+        contentInput.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+    }
 });
 
-// Sync from HTML textarea in real time
+// In HTML mode: sync textarea → contentInput live
 htmlEditor.addEventListener('input', function() {
     contentInput.value = htmlEditor.value;
+});
+
+// On submit: ensure contentInput has the correct value from active mode
+document.getElementById('galleryForm').addEventListener('submit', function() {
+    contentInput.value = htmlMode
+        ? htmlEditor.value
+        : (quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML);
 });
 </script>
 <script>
