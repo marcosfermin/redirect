@@ -79,27 +79,6 @@ header('Content-Type: text/html; charset=utf-8');
             border-radius: 14px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         }
-        .countdown-bar {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.35);
-            backdrop-filter: blur(12px);
-            padding: 14px 24px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .countdown-text { font-size: 0.88rem; opacity: 0.9; white-space: nowrap; }
-        .progress-track {
-            flex: 1; height: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px; overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%; width: 100%;
-            background: #fff; border-radius: 2px;
-            transition: width 1s linear;
-        }
         .blog-content {
             background: rgba(255,255,255,0.12);
             backdrop-filter: blur(10px);
@@ -142,25 +121,6 @@ header('Content-Type: text/html; charset=utf-8');
         <?php endif; ?>
     </div>
 
-    <div class="countdown-bar">
-        <span class="countdown-text" id="cdText">Redirigiendo en <?= $refreshSeconds ?>s</span>
-        <div class="progress-track">
-            <div class="progress-fill" id="cdFill"></div>
-        </div>
-    </div>
-
-    <script>
-        const total = <?= $refreshSeconds ?>;
-        let left = total;
-        const fill = document.getElementById('cdFill');
-        const text = document.getElementById('cdText');
-        const t = setInterval(() => {
-            left--;
-            fill.style.width = (left / total * 100) + '%';
-            text.textContent = left > 0 ? 'Redirigiendo en ' + left + 's' : 'Redirigiendo...';
-            if (left <= 0) clearInterval(t);
-        }, 1000);
-    </script>
 </body>
 </html>
 <?php
