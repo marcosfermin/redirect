@@ -564,6 +564,7 @@ while ($row = $result->fetch_assoc()) {
                         <label class="form-label">Contenido (Blog)</label>
                         <div class="quill-wrapper">
                             <div id="quillEditor"></div>
+                            <textarea id="htmlEditor" style="display:none;width:100%;min-height:200px;max-height:400px;background:rgba(255,255,255,0.04);color:#fff;border:1px solid rgba(255,255,255,0.1);border-top:none;border-radius:0 0 8px 8px;padding:14px;font-family:monospace;font-size:0.88rem;resize:vertical;outline:none;"></textarea>
                         </div>
                         <input type="hidden" name="content" id="contentInput">
                     </div>
@@ -681,18 +682,43 @@ while ($row = $result->fetch_assoc()) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
-// Quill editor
+// Register custom HTML-source button
+const icons = Quill.import('ui/icons');
+icons['html-source'] = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M14.6 16.6l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4zm-5.2 0L4.8 12l4.6-4.6L8 6 2 12l6 6 1.4-1.4z"/></svg>';
+
 const quill = new Quill('#quillEditor', {
     theme: 'snow',
     placeholder: 'Escribe el contenido del blog...',
     modules: {
-        toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'blockquote'],
-            ['clean']
-        ]
+        toolbar: {
+            container: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['link', 'blockquote'],
+                ['clean'],
+                ['html-source']
+            ],
+            handlers: {
+                'html-source': function() {
+                    const quillEl   = document.getElementById('quillEditor');
+                    const htmlEl    = document.getElementById('htmlEditor');
+                    const isHtml    = htmlEl.style.display !== 'none';
+                    if (isHtml) {
+                        // Switch back to WYSIWYG
+                        quill.root.innerHTML = htmlEl.value;
+                        htmlEl.style.display = 'none';
+                        quillEl.style.display = '';
+                        contentInput.value = htmlEl.value === '<p><br></p>' ? '' : htmlEl.value;
+                    } else {
+                        // Switch to HTML source
+                        htmlEl.value = quill.root.innerHTML;
+                        quillEl.style.display = 'none';
+                        htmlEl.style.display = 'block';
+                    }
+                }
+            }
+        }
     }
 });
 
@@ -700,10 +726,17 @@ const quill = new Quill('#quillEditor', {
 quill.root.innerHTML = <?= json_encode($editGallery['content']) ?>;
 <?php endif; ?>
 
-// Keep hidden input synced on every keystroke so submit never blocks
 const contentInput = document.getElementById('contentInput');
+const htmlEditor   = document.getElementById('htmlEditor');
+
+// Sync from WYSIWYG
 quill.on('text-change', function() {
     contentInput.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+});
+
+// Sync from HTML textarea in real time
+htmlEditor.addEventListener('input', function() {
+    contentInput.value = htmlEditor.value;
 });
 </script>
 <script>
