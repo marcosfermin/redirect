@@ -1,42 +1,39 @@
-# Gated
+# Redirect
 
-Plataforma de contenido exclusivo que desbloquea galerias de imagenes y videos cuando el usuario reproduce un video de YouTube. Ideal para creadores de contenido que quieren incentivar la visualizacion de sus videos a cambio de acceso a contenido premium.
+Plataforma de links de redireccion con pagina de espera configurable. El administrador crea links con una URL de destino y define cuantos segundos se muestra la pagina de espera antes de redirigir al visitante.
 
 ## Como funciona
 
-1. El administrador crea una galeria con un enlace de YouTube y sube imagenes/videos
+1. El administrador crea un link con una URL de destino (cualquier tipo: YouTube, Vimeo, video directo, sitio web, etc.)
 2. Se genera un link unico (slug) para compartir
-3. El visitante ve el contenido borroso hasta que reproduce el video de YouTube
-4. Mientras el video se reproduce, la galeria se desbloquea en tiempo real
-5. Si el usuario pausa o detiene el video, el contenido se vuelve a bloquear
+3. El visitante abre el link y ve una pagina de espera morada durante X segundos
+4. Pasados los segundos configurados, el meta refresh redirige automaticamente a la URL de destino
 
 ## Caracteristicas
 
 ### Panel de Administracion
-- Crear, editar y eliminar galerias
-- Subir multiples imagenes y videos con drag & drop
+- Crear, editar y eliminar links de redireccion
+- URL de destino de cualquier tipo (YouTube, Vimeo, .mp4, .webm, cualquier enlace)
 - Configurar imagen de preview para redes sociales (OG tags)
-- Paginacion de galerias
+- Configurar los segundos de espera antes del redirect (1 a 3600)
+- Paginacion de links
 
-### Pagina Publica (watch.php)
-- Reproductor de YouTube embebido via IFrame API
-- Galeria con efecto blur que se desbloquea al reproducir
-- Lightbox para ver contenido en pantalla completa
-- Soporte para imagenes (JPG, PNG, GIF, WebP) y videos (MP4, WebM, MOV)
-- Diseno responsive (mobile, tablet, desktop)
+### Pagina de Espera (watch.php)
+- Pagina en blanco con fondo morado degradado
+- Meta refresh automatico hacia la URL de destino
+- Tiempo de espera configurable desde el panel de administracion
 - Meta tags para compartir en redes sociales
 
 ### Analytics Dashboard
 - **Estadisticas globales**: vistas totales, hoy, esta semana, este mes
-- **Estadisticas por galeria**: vistas, visitantes unicos, watch time promedio y total por cada link
-- **Watch time tracking**: tiempo exacto que cada usuario reproduce el video de YouTube
+- **Estadisticas por link**: vistas y visitantes unicos por cada slug
 - **Visitantes unicos**: tracking por IP (compatible con Cloudflare)
 - **Device breakdown**: porcentaje de mobile, desktop y tablet
-- **Top galleries**: ranking de galerias mas vistas
+- **Top links**: ranking de links mas visitados
 - **Grafico de vistas**: chart de linea con los ultimos 7 dias
 - **Actividad reciente**: feed en tiempo real de las ultimas vistas
-- **Filtro por galeria**: dropdown para ver estadisticas de un link especifico
-- **Logs detallados**: tabla paginada con galeria, IP, dispositivo, watch time y fecha
+- **Filtro por link**: dropdown para ver estadisticas de un slug especifico
+- **Logs detallados**: tabla paginada con slug, IP, dispositivo y fecha
 
 ## Stack Tecnologico
 
@@ -44,10 +41,8 @@ Plataforma de contenido exclusivo que desbloquea galerias de imagenes y videos c
 |---|---|
 | Backend | PHP 8.2 |
 | Base de datos | MySQL 8.0 |
-| Servidor web | Apache (mod_rewrite) |
+| Servidor web | Apache |
 | Frontend | HTML5, Bootstrap 5.3, Vanilla JS |
-| Charts | Chart.js |
-| Video | YouTube IFrame API |
 | Deploy | Docker & Docker Compose |
 
 ## Requisitos
@@ -59,8 +54,8 @@ Plataforma de contenido exclusivo que desbloquea galerias de imagenes y videos c
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/marcosfermin/gated.git
-cd gated
+git clone https://github.com/marcosfermin/redirect.git
+cd redirect
 ```
 
 ### 2. Configurar variables de entorno
@@ -89,12 +84,12 @@ Visita `http://localhost:8080/index.php` e inicia sesion con tu cuenta.
 ## Estructura del proyecto
 
 ```
-gated/
-├── config.php              # Configuracion de BD y uploads
-├── index.php               # Panel de administracion (CRUD galerias)
-├── watch.php               # Pagina publica del viewer
+redirect/
+├── config.php              # Configuracion de BD y helper de settings
+├── index.php               # Panel de administracion (CRUD links + settings)
+├── watch.php               # Pagina de espera con meta refresh
 ├── logs.php                # Dashboard de analytics
-├── set_watched.php         # Endpoint para registrar vistas y watch time
+├── set_watched.php         # Endpoint para registrar vistas
 ├── upload_media.php        # Endpoint para subir archivos (AJAX)
 ├── delete_media.php        # Endpoint para eliminar archivos (AJAX)
 ├── login_form.php          # Formulario de login
@@ -106,10 +101,9 @@ gated/
 ├── docker-compose.yml      # Orquestacion de servicios
 ├── docker-entrypoint.sh    # Script de inicio del contenedor
 ├── .env.example            # Variables de entorno de ejemplo
-├── .dockerignore           # Archivos excluidos del build
 └── uploads/                # Directorio de archivos subidos
-    ├── gallery/            # Imagenes y videos de galerias
-    └── thumbs/             # Thumbnails y meta images
+    ├── gallery/            # Archivos multimedia
+    └── thumbs/             # Meta images para redes sociales
 ```
 
 ## Schema de base de datos
@@ -126,48 +120,47 @@ gated/
 ### galleries
 | Campo | Tipo | Descripcion |
 |---|---|---|
-| id | INT (PK) | ID de la galeria |
+| id | INT (PK) | ID del link |
 | slug | VARCHAR(64) | Identificador unico para la URL |
-| youtube_url | TEXT | URL del video de YouTube |
-| title | VARCHAR(255) | Titulo de la galeria |
+| youtube_url | TEXT | URL de destino del redirect |
+| title | VARCHAR(255) | Titulo del link |
 | description | TEXT | Descripcion para meta tags |
 | meta_image | TEXT | Imagen de preview para redes sociales |
 | created_at | TIMESTAMP | Fecha de creacion |
 
-### gallery_media
+### settings
 | Campo | Tipo | Descripcion |
 |---|---|---|
-| id | INT (PK) | ID del archivo |
-| gallery_id | INT (FK) | Referencia a la galeria |
-| media_type | ENUM | image o video |
-| file_path | TEXT | Ruta del archivo |
-| original_filename | VARCHAR(255) | Nombre original del archivo |
-| file_size | INT | Tamano en bytes |
-| mime_type | VARCHAR(100) | Tipo MIME del archivo |
-| created_at | TIMESTAMP | Fecha de subida |
+| setting_key | VARCHAR(100) (PK) | Clave del setting |
+| setting_value | TEXT | Valor del setting |
+| updated_at | TIMESTAMP | Ultima actualizacion |
+
+**Settings disponibles:**
+
+| Clave | Descripcion | Default |
+|---|---|---|
+| meta_refresh_seconds | Segundos de espera antes del redirect | 5 |
 
 ### completions
 | Campo | Tipo | Descripcion |
 |---|---|---|
 | id | INT (PK) | ID del registro |
-| slug | VARCHAR(64) | Slug de la galeria vista |
+| slug | VARCHAR(64) | Slug del link visitado |
 | ip_address | VARCHAR(64) | IP del visitante (Cloudflare-aware) |
 | user_agent | TEXT | User agent del navegador |
-| watch_time | INT | Segundos de reproduccion del video |
-| completed_at | DATETIME | Fecha y hora de la vista |
+| watch_time | INT | Segundos en la pagina de espera |
+| completed_at | DATETIME | Fecha y hora de la visita |
 
 ## Configuracion
 
-### Limites de subida
-- Tamano maximo por archivo: **100 MB**
-- Tipos de imagen permitidos: JPG, JPEG, PNG, GIF, WebP
-- Tipos de video permitidos: MP4, WebM, MOV
+### Segundos de espera
+
+Desde el panel de administracion, en la seccion **Settings**, configura cuantos segundos dura la pagina de espera antes de redirigir. Rango: 1 a 3600 segundos.
 
 ### Seguridad
 - Autenticacion por sesion con timeout de 30 minutos
 - Hashing de contrasenas con `PASSWORD_DEFAULT` (bcrypt)
 - Prepared statements para prevencion de SQL injection
-- Validacion de extensiones y MIME types en uploads
 - Sanitizacion de output con `htmlspecialchars()`
 
 ### Variables de entorno
@@ -181,26 +174,23 @@ gated/
 
 ## Uso
 
-### Crear una galeria
+### Crear un link de redireccion
 
-1. Accede al panel de administracion
-2. Llena el formulario con el titulo, slug, URL de YouTube y descripcion
-3. Sube las imagenes y videos arrastrando o seleccionando archivos
-4. Opcionalmente configura una imagen de preview para redes sociales
-5. Guarda la galeria
+1. Accede al panel de administracion en `/index.php`
+2. Ingresa la URL de destino (cualquier tipo de enlace)
+3. Opcionalmente agrega titulo, descripcion e imagen de preview
+4. Guarda y copia el slug generado
 
 ### Compartir un link
 
-Comparte la URL con el formato:
+```
+https://tudominio.com/watch.php?slug=SLUG
+```
 
-```
-https://tudominio.com/watch.php?slug=mi-galeria
-```
+### Configurar el tiempo de espera
+
+En el panel de administracion, seccion **Settings**, define los segundos que el visitante vera la pagina morada antes de ser redirigido.
 
 ### Ver estadisticas
 
-Accede a `logs.php` desde el panel de administracion para ver:
-- Estadisticas globales y por galeria
-- Tiempo de reproduccion de cada visitante
-- Graficos de tendencias
-- Logs detallados con filtros
+Accede a `logs.php` desde el panel para ver vistas, visitantes unicos, dispositivos y tendencias por link.
