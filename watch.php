@@ -7,17 +7,163 @@ if (!$slug) {
     die("Missing link.");
 }
 
-// Fetch gallery early to get the redirect URL
-$result = $conn->query("SELECT youtube_url FROM galleries WHERE slug = '$slug'");
+// Fetch gallery
+$result = $conn->query("SELECT * FROM galleries WHERE slug = '$slug'");
 if (!$result || $result->num_rows === 0) die("Invalid link.");
-$redirectUrl = htmlspecialchars($result->fetch_assoc()['youtube_url'], ENT_QUOTES);
+$gallery = $result->fetch_assoc();
 
-// Show purple blank page that redirects to the stored link
+// Fetch images for the landing page
+$mediaResult = $conn->query("SELECT file_path FROM gallery_media WHERE gallery_id = {$gallery['id']} AND media_type = 'image' ORDER BY created_at");
+$mediaItems = [];
+while ($row = $mediaResult->fetch_assoc()) $mediaItems[] = $row;
+
 $refreshSeconds = max(1, (int)getSetting($conn, 'meta_refresh_seconds', 5));
+$redirectUrl    = htmlspecialchars($gallery['youtube_url'], ENT_QUOTES);
+$pageTitle      = htmlspecialchars($gallery['title'] ?: '');
+
+$heroImage = '';
+if (!empty($gallery['meta_image'])) {
+    $img = $gallery['meta_image'];
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $heroImage = filter_var($img, FILTER_VALIDATE_URL)
+        ? htmlspecialchars($img)
+        : $protocol . '://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($img, '/');
+}
+
 header('Content-Type: text/html; charset=utf-8');
-echo '<!DOCTYPE html><html><head><meta charset="utf-8">';
-echo '<meta http-equiv="refresh" content="' . $refreshSeconds . ';url=' . $redirectUrl . '">';
-echo '</head><body style="margin:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;"></body></html>';
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="<?= $refreshSeconds ?>;url=<?= $redirectUrl ?>">
+    <title><?= $pageTitle ?: 'Redirigiendo...' ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 50px 20px 80px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .page-title {
+            text-align: center;
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 35px;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+            line-height: 1.2;
+        }
+        .hero-image {
+            width: 100%;
+            max-height: 420px;
+            object-fit: cover;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            margin-bottom: 30px;
+            display: block;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+        }
+        .gallery-grid img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 14px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        .countdown-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(12px);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .countdown-text { font-size: 0.88rem; opacity: 0.9; white-space: nowrap; }
+        .progress-track {
+            flex: 1; height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; width: 100%;
+            background: #fff; border-radius: 2px;
+            transition: width 1s linear;
+        }
+        .blog-content {
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px 35px;
+            margin-bottom: 30px;
+            line-height: 1.75;
+            font-size: 1rem;
+        }
+        .blog-content h1, .blog-content h2, .blog-content h3 { font-weight: 700; margin: 0 0 14px; }
+        .blog-content p  { margin: 0 0 12px; }
+        .blog-content ul, .blog-content ol { padding-left: 22px; margin: 0 0 12px; }
+        .blog-content li { margin-bottom: 6px; }
+        .blog-content a  { color: #c9d4ff; }
+        .blog-content blockquote { border-left: 3px solid rgba(255,255,255,0.4); padding-left: 16px; opacity: 0.85; margin: 0 0 12px; }
+        .blog-content strong { font-weight: 700; }
+        .blog-content em { font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <?php if ($pageTitle): ?>
+            <h1 class="page-title"><?= $pageTitle ?></h1>
+        <?php endif; ?>
+
+        <?php if ($heroImage): ?>
+            <img src="<?= $heroImage ?>" class="hero-image" alt="">
+        <?php endif; ?>
+
+        <?php if (!empty($gallery['content'])): ?>
+            <div class="blog-content"><?= $gallery['content'] ?></div>
+        <?php endif; ?>
+
+        <?php if (!empty($mediaItems)): ?>
+            <div class="gallery-grid">
+                <?php foreach ($mediaItems as $item): ?>
+                    <img src="<?= htmlspecialchars($item['file_path']) ?>" alt="" loading="lazy">
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="countdown-bar">
+        <span class="countdown-text" id="cdText">Redirigiendo en <?= $refreshSeconds ?>s</span>
+        <div class="progress-track">
+            <div class="progress-fill" id="cdFill"></div>
+        </div>
+    </div>
+
+    <script>
+        const total = <?= $refreshSeconds ?>;
+        let left = total;
+        const fill = document.getElementById('cdFill');
+        const text = document.getElementById('cdText');
+        const t = setInterval(() => {
+            left--;
+            fill.style.width = (left / total * 100) + '%';
+            text.textContent = left > 0 ? 'Redirigiendo en ' + left + 's' : 'Redirigiendo...';
+            if (left <= 0) clearInterval(t);
+        }, 1000);
+    </script>
+</body>
+</html>
+<?php
 exit();
 
 // Fetch gallery

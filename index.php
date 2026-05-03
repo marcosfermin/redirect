@@ -102,10 +102,11 @@ if (isset($_GET['edit'])) {
 
 // Handle form submission (create/update gallery)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_gallery'])) {
-    $youtubeUrl = $conn->real_escape_string($_POST['youtube_url']);
-    $title = $conn->real_escape_string($_POST['title'] ?? '');
+    $youtubeUrl  = $conn->real_escape_string($_POST['youtube_url']);
+    $title       = $conn->real_escape_string($_POST['title'] ?? '');
     $description = $conn->real_escape_string($_POST['description'] ?? '');
-    $galleryId = (int)($_POST['gallery_id'] ?? 0);
+    $content     = $conn->real_escape_string($_POST['content'] ?? '');
+    $galleryId   = (int)($_POST['gallery_id'] ?? 0);
 
     // Handle meta image upload
     $metaImage = '';
@@ -122,20 +123,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_gallery'])) {
     }
 
     if ($galleryId > 0) {
-        // Update existing gallery
-        $updates = ["youtube_url = '$youtubeUrl'", "title = '$title'", "description = '$description'"];
-        if ($metaImage) {
-            $updates[] = "meta_image = '$metaImage'";
-        }
+        $updates = ["youtube_url = '$youtubeUrl'", "title = '$title'", "description = '$description'", "content = '$content'"];
+        if ($metaImage) $updates[] = "meta_image = '$metaImage'";
         $conn->query("UPDATE galleries SET " . implode(', ', $updates) . " WHERE id = $galleryId");
     } else {
-        // Create new gallery
         $slug = uniqid();
-        if ($metaImage) {
-            $conn->query("INSERT INTO galleries (slug, youtube_url, title, description, meta_image) VALUES ('$slug', '$youtubeUrl', '$title', '$description', '$metaImage')");
-        } else {
-            $conn->query("INSERT INTO galleries (slug, youtube_url, title, description) VALUES ('$slug', '$youtubeUrl', '$title', '$description')");
-        }
+        $conn->query("INSERT INTO galleries (slug, youtube_url, title, description, meta_image, content) VALUES ('$slug', '$youtubeUrl', '$title', '$description', '$metaImage', '$content')");
         $galleryId = $conn->insert_id;
     }
 
@@ -169,6 +162,21 @@ while ($row = $result->fetch_assoc()) {
     <title>Gallery Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <style>
+        /* Quill dark theme overrides */
+        .ql-toolbar { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1) !important; border-radius: 8px 8px 0 0; position: relative; z-index: 2; }
+        .ql-container { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1) !important; border-radius: 0 0 8px 8px; min-height: 200px; max-height: 400px; overflow-y: auto; position: relative; z-index: 1; }
+        .ql-editor { color: #fff; min-height: 200px; font-family: 'Inter', sans-serif; font-size: 0.95rem; }
+        .ql-editor.ql-blank::before { color: rgba(255,255,255,0.3); font-style: normal; }
+        .ql-toolbar .ql-stroke { stroke: rgba(255,255,255,0.65); }
+        .ql-toolbar .ql-fill  { fill:  rgba(255,255,255,0.65); }
+        .ql-toolbar .ql-picker { color: rgba(255,255,255,0.65); }
+        .ql-toolbar button:hover .ql-stroke, .ql-toolbar button.ql-active .ql-stroke { stroke: #fff; }
+        .ql-toolbar button:hover .ql-fill,  .ql-toolbar button.ql-active .ql-fill  { fill:  #fff; }
+        .ql-toolbar .ql-picker-options { background: #1e1e30; border-color: rgba(255,255,255,0.1); }
+        .quill-wrapper { position: relative; z-index: 1; margin-bottom: 20px; }
+    </style>
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -522,8 +530,8 @@ while ($row = $result->fetch_assoc()) {
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">URL del contenido *</label>
-                        <input type="url" name="youtube_url" class="form-control" required
+                        <label class="form-label">URL del contenido</label>
+                        <input type="text" name="youtube_url" class="form-control"
                                value="<?= htmlspecialchars($editGallery['youtube_url'] ?? '') ?>"
                                placeholder="YouTube, Vimeo, .mp4, o cualquier enlace">
                         <div class="form-text text-muted">Soporta: YouTube, Vimeo, video directo (mp4/webm) o cualquier URL</div>
@@ -551,12 +559,24 @@ while ($row = $result->fetch_assoc()) {
                     </div>
                 </div>
 
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label">Contenido (Blog)</label>
+                        <div class="quill-wrapper">
+                            <div id="quillEditor"></div>
+                        </div>
+                        <input type="hidden" name="content" id="contentInput">
+                    </div>
+                </div>
+
+                <div style="position:relative; z-index:10;">
                 <button type="submit" name="save_gallery" class="btn btn-primary">
                     <?= $editGallery ? 'Update Gallery' : 'Create Gallery' ?>
                 </button>
                 <?php if ($editGallery): ?>
                     <a href="index.php" class="btn btn-secondary">Cancel</a>
                 <?php endif; ?>
+                </div>
             </form>
 
             <?php if ($editGallery): ?>
@@ -659,6 +679,33 @@ while ($row = $result->fetch_assoc()) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+// Quill editor
+const quill = new Quill('#quillEditor', {
+    theme: 'snow',
+    placeholder: 'Escribe el contenido del blog...',
+    modules: {
+        toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link', 'blockquote'],
+            ['clean']
+        ]
+    }
+});
+
+<?php if (!empty($editGallery['content'])): ?>
+quill.root.innerHTML = <?= json_encode($editGallery['content']) ?>;
+<?php endif; ?>
+
+// Keep hidden input synced on every keystroke so submit never blocks
+const contentInput = document.getElementById('contentInput');
+quill.on('text-change', function() {
+    contentInput.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+});
+</script>
 <script>
 const galleryId = <?= $editGallery['id'] ?? 0 ?>;
 const dropzone = document.getElementById('dropzone');

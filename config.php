@@ -20,6 +20,12 @@ define('MAX_UPLOAD_SIZE', 100 * 1024 * 1024); // 100MB
 define('UPLOAD_DIR', 'uploads/gallery/');
 define('THUMB_DIR', 'uploads/thumbs/');
 
+// Ensure content column exists on galleries (MySQL 8.0 compatible)
+$colCheck = $conn->query("SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'galleries' AND COLUMN_NAME = 'content'");
+if ($colCheck && $colCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE galleries ADD COLUMN content LONGTEXT DEFAULT NULL");
+}
+
 // Ensure settings table exists with defaults
 $conn->query("CREATE TABLE IF NOT EXISTS settings (
   setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
