@@ -30,6 +30,40 @@ if (!empty($gallery['meta_image'])) {
         : $protocol . '://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($img, '/');
 }
 
+// Log this visit to completions
+(function() use ($conn, $slug) {
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+    } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+        $ip = trim($_SERVER['HTTP_X_REAL_IP']);
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        $ip = trim($parts[0]);
+    } else {
+        $ip = $_SERVER['REMOTE_ADDR'];
+    }
+
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+    $country = null;
+    if (!empty($_SERVER['HTTP_CF_IPCOUNTRY'])) {
+        $country = substr($_SERVER['HTTP_CF_IPCOUNTRY'], 0, 2);
+    } else {
+        $ch = curl_init("http://ip-api.com/json/{$ip}?fields=countryCode");
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_CONNECTTIMEOUT => 2]);
+        $geo = curl_exec($ch);
+        curl_close($ch);
+        if ($geo) {
+            $geoData = json_decode($geo, true);
+            if (!empty($geoData['countryCode'])) $country = substr($geoData['countryCode'], 0, 2);
+        }
+    }
+
+    $stmt = $conn->prepare("INSERT INTO completions (slug, ip_address, user_agent, country, watch_time) VALUES (?, ?, ?, ?, 0)");
+    $stmt->bind_param("ssss", $slug, $ip, $userAgent, $country);
+    $stmt->execute();
+})();
+
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
