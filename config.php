@@ -26,6 +26,12 @@ if ($colCheck && $colCheck->num_rows === 0) {
     $conn->query("ALTER TABLE galleries ADD COLUMN content LONGTEXT DEFAULT NULL");
 }
 
+// Ensure redirected column exists on completions
+$colCheck = $conn->query("SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'completions' AND COLUMN_NAME = 'redirected'");
+if ($colCheck && $colCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE completions ADD COLUMN redirected TINYINT(1) NOT NULL DEFAULT 0");
+}
+
 // Ensure settings table exists with defaults
 $conn->query("CREATE TABLE IF NOT EXISTS settings (
   setting_key VARCHAR(100) NOT NULL PRIMARY KEY,

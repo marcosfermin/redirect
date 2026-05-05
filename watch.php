@@ -30,8 +30,8 @@ if (!empty($gallery['meta_image'])) {
         : $protocol . '://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($img, '/');
 }
 
-// Log this visit to completions
-(function() use ($conn, $slug) {
+// Log this visit to completions, return new record ID
+$completionId = (function() use ($conn, $slug) {
     if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
         $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
     } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
@@ -62,6 +62,7 @@ if (!empty($gallery['meta_image'])) {
     $stmt = $conn->prepare("INSERT INTO completions (slug, ip_address, user_agent, country, watch_time) VALUES (?, ?, ?, ?, 0)");
     $stmt->bind_param("ssss", $slug, $ip, $userAgent, $country);
     $stmt->execute();
+    return (int)$stmt->insert_id;
 })();
 
 header('Content-Type: text/html; charset=utf-8');
@@ -71,7 +72,6 @@ header('Content-Type: text/html; charset=utf-8');
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="<?= $refreshSeconds ?>;url=<?= $redirectUrl ?>">
     <title><?= $pageTitle ?: 'Redirigiendo...' ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -155,6 +155,23 @@ header('Content-Type: text/html; charset=utf-8');
         <?php endif; ?>
     </div>
 
+<script>
+(function() {
+    var completionId = <?= (int)$completionId ?>;
+    var redirectUrl  = <?= json_encode($gallery['youtube_url']) ?>;
+    var delaySecs    = <?= (int)$refreshSeconds ?>;
+
+    setTimeout(function() {
+        if (completionId > 0) {
+            var d = new FormData();
+            d.append('id', completionId);
+            d.append('redirected', '1');
+            navigator.sendBeacon('set_watched.php', d);
+        }
+        location.href = redirectUrl;
+    }, delaySecs * 1000);
+})();
+</script>
 </body>
 </html>
 <?php

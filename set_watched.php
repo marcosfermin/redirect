@@ -26,6 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id']) && isset($_POST
     exit;
 }
 
+// --- MARK record as redirected ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id']) && isset($_POST['redirected'])) {
+    $id = (int)$_POST['id'];
+    $stmt = $conn->prepare("UPDATE completions SET redirected = 1 WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    http_response_code(204);
+    exit;
+}
+
 // --- CREATE new completion record ---
 $slug = $conn->real_escape_string($_GET['slug'] ?? '');
 if (!$slug) {

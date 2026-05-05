@@ -118,6 +118,10 @@ $recentActivity = $conn->query("
     LIMIT 10
 ")->fetch_all(MYSQLI_ASSOC);
 
+// Redirect stats
+$stats_redirects = (int)$conn->query("SELECT COUNT(*) AS c FROM completions $paginationWhere " . ($filterSlug ? "AND" : "WHERE") . " redirected = 1")->fetch_assoc()['c'];
+$redirect_rate = $stats_total > 0 ? round(($stats_redirects / $stats_total) * 100, 1) : 0;
+
 // Growth calculation
 $growthWhere = $filterSlug ? "AND slug = '$filterSlug'" : "";
 $lastWeekViews = (int)$conn->query("
@@ -132,6 +136,7 @@ $growth = $lastWeekViews > 0 ? round((($stats_week - $lastWeekViews) / $lastWeek
 $galleryBreakdown = $conn->query("
     SELECT c.slug, g.title,
            COUNT(*) as views,
+           SUM(c.redirected) as redirects,
            COUNT(DISTINCT c.ip_address) as unique_visitors,
            COALESCE(AVG(c.watch_time), 0) as avg_watch,
            COALESCE(SUM(c.watch_time), 0) as total_watch,
@@ -773,6 +778,16 @@ function formatSeconds($secs) {
                 </div>
             </div>
         </div>
+        <div class="col-xl-2 col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">&#128279;</div>
+                <div class="label">Redirects</div>
+                <div class="value"><?= number_format($stats_redirects) ?></div>
+                <div class="change <?= $redirect_rate >= 50 ? 'positive' : '' ?>">
+                    <span>&#128200;</span> <?= $redirect_rate ?>% conversion
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Charts Row -->
@@ -879,6 +894,7 @@ function formatSeconds($secs) {
                     <div class="breakdown-row" style="cursor: default; opacity: 0.6; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
                         <div class="gallery-name"><span class="name">Galeria</span></div>
                         <div class="stat-col"><span class="stat-label">Views</span></div>
+                        <div class="stat-col"><span class="stat-label">Redirects</span></div>
                         <div class="stat-col"><span class="stat-label">Unicos</span></div>
                         <div class="stat-col"><span class="stat-label">Avg Watch</span></div>
                         <div class="stat-col"><span class="stat-label">Total Watch</span></div>
@@ -893,6 +909,10 @@ function formatSeconds($secs) {
                             <div class="stat-col">
                                 <div class="stat-num"><?= number_format($gb['views']) ?></div>
                                 <div class="stat-label">views</div>
+                            </div>
+                            <div class="stat-col">
+                                <div class="stat-num" style="color: #f093fb;"><?= number_format($gb['redirects']) ?></div>
+                                <div class="stat-label">redirects</div>
                             </div>
                             <div class="stat-col">
                                 <div class="stat-num"><?= number_format($gb['unique_visitors']) ?></div>
@@ -1009,6 +1029,7 @@ function formatSeconds($secs) {
                         <th>Country</th>
                         <th>Device</th>
                         <th>Watch Time</th>
+                        <th>Redirected</th>
                         <th>Date & Time</th>
                     </tr>
                 </thead>
@@ -1037,6 +1058,13 @@ function formatSeconds($secs) {
                                 <td><span class="slug-badge"><?= htmlspecialchars($row['country'] ?? '—') ?></span></td>
                                 <td><span class="device-badge <?= $deviceType ?>"><?= $deviceLabel ?></span></td>
                                 <td><span class="watch-badge"><?= formatSeconds($rowWatchTime) ?></span></td>
+                                <td>
+                                    <?php if (!empty($row['redirected'])): ?>
+                                        <span class="device-badge mobile">&#10003; Yes</span>
+                                    <?php else: ?>
+                                        <span style="color: rgba(255,255,255,0.3); font-size: 0.85rem;">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= date('M j, Y \a\t g:i A', strtotime($row['completed_at'])) ?></td>
                             </tr>
                         <?php endwhile; ?>
