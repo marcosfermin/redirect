@@ -80,7 +80,7 @@ $dailyViews = $conn->query("
 
 // Views per hour (today)
 $hourlyViews = $conn->query("
-    SELECT HOUR(completed_at) as hour, COUNT(*) as views
+    SELECT HOUR(completed_at) as hour, COUNT(*) as views, SUM(redirected) as redirects
     FROM completions
     $paginationWhere
     " . ($filterSlug ? "AND" : "WHERE") . " DATE(completed_at) = CURDATE()
@@ -846,6 +846,19 @@ function formatSeconds($secs) {
         </div>
     </div>
 
+    <!-- Hourly Chart (Today) -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="card-title">
+                    Views &amp; Redirects por Hora
+                    <span class="badge">Hoy</span>
+                </div>
+                <canvas id="hourlyChart" height="60"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- Country Breakdown -->
     <?php if (!empty($countryStats)): ?>
     <div class="row g-4 mb-4">
@@ -1183,6 +1196,91 @@ new Chart(ctx, {
                     color: 'rgba(255, 255, 255, 0.5)',
                     stepSize: 1
                 }
+            }
+        }
+    }
+});
+
+// Hourly Chart (today)
+const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+const hourlyData = <?= json_encode($hourlyViews) ?>;
+
+const hours24 = Array.from({length: 24}, (_, i) => i);
+const hourLabels = hours24.map(h => {
+    const suffix = h < 12 ? 'am' : 'pm';
+    const display = h % 12 === 0 ? 12 : h % 12;
+    return display + suffix;
+});
+
+const hourlyViewsArr     = hours24.map(h => { const f = hourlyData.find(d => +d.hour === h); return f ? +f.views : 0; });
+const hourlyRedirectsArr = hours24.map(h => { const f = hourlyData.find(d => +d.hour === h); return f ? +f.redirects : 0; });
+
+const gradientH = hourlyCtx.createLinearGradient(0, 0, 0, 250);
+gradientH.addColorStop(0, 'rgba(102, 126, 234, 0.4)');
+gradientH.addColorStop(1, 'rgba(102, 126, 234, 0)');
+
+const gradientR = hourlyCtx.createLinearGradient(0, 0, 0, 250);
+gradientR.addColorStop(0, 'rgba(240, 147, 251, 0.4)');
+gradientR.addColorStop(1, 'rgba(240, 147, 251, 0)');
+
+new Chart(hourlyCtx, {
+    type: 'line',
+    data: {
+        labels: hourLabels,
+        datasets: [
+            {
+                label: 'Views',
+                data: hourlyViewsArr,
+                borderColor: '#667eea',
+                backgroundColor: gradientH,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#667eea'
+            },
+            {
+                label: 'Redirects',
+                data: hourlyRedirectsArr,
+                borderColor: '#f093fb',
+                backgroundColor: gradientR,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#f093fb'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: true,
+                labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, pointStyleWidth: 10 }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(30, 30, 40, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                cornerRadius: 10,
+                padding: 12
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.5)', maxTicksLimit: 12 }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.5)', stepSize: 1 }
             }
         }
     }
