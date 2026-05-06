@@ -656,6 +656,9 @@ while ($row = $result->fetch_assoc()) {
                                 <a href="?edit=<?= $g['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
                                 <a href="?delete=<?= $g['id'] ?>" class="btn btn-sm btn-outline-danger"
                                    onclick="return confirm('Delete this gallery and all its media?')">Delete</a>
+                                <a href="logs.php?gallery=<?= urlencode($g['slug']) ?>" class="btn btn-sm btn-outline-secondary">Show Gallery Logs</a>
+                                <button type="button" class="btn btn-sm btn-outline-info"
+                                        onclick="copyGalleryLink(this, '<?= htmlspecialchars($g['slug'], ENT_QUOTES) ?>')">Copy link</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -871,6 +874,15 @@ async function deleteMedia(id) {
     } catch (err) {
         alert('Delete error: ' + err.message);
     }
+}
+
+function copyGalleryLink(btn, slug) {
+    const url = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/') + 'watch.php?slug=' + encodeURIComponent(slug);
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 1500);
+    });
 }
 </script>
 </body>
