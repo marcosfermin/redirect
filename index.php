@@ -84,6 +84,23 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
+// Handle clone gallery
+if (isset($_GET['clone'])) {
+    $cloneId = (int)$_GET['clone'];
+    $result = $conn->query("SELECT * FROM galleries WHERE id = $cloneId");
+    if ($src = $result->fetch_assoc()) {
+        $newSlug  = $conn->real_escape_string(uniqid());
+        $title    = $conn->real_escape_string('Copy of ' . $src['title']);
+        $desc     = $conn->real_escape_string($src['description']);
+        $content  = $conn->real_escape_string($src['content']);
+        $youtube  = $conn->real_escape_string($src['youtube_url']);
+        $conn->query("INSERT INTO galleries (slug, youtube_url, title, description, meta_image, content) VALUES ('$newSlug', '$youtube', '$title', '$desc', '', '$content')");
+        $newId = $conn->insert_id;
+        header("Location: index.php?edit=$newId&cloned=1");
+        exit();
+    }
+}
+
 // Handle edit - fetch gallery data
 $editGallery = null;
 $editMedia = [];
@@ -659,6 +676,8 @@ while ($row = $result->fetch_assoc()) {
                                 <a href="logs.php?gallery=<?= urlencode($g['slug']) ?>" class="btn btn-sm btn-outline-secondary">Show Gallery Logs</a>
                                 <button type="button" class="btn btn-sm btn-outline-info"
                                         onclick="copyGalleryLink(this, '<?= htmlspecialchars($g['slug'], ENT_QUOTES) ?>')">Copy link</button>
+                                <a href="?clone=<?= $g['id'] ?>" class="btn btn-sm btn-outline-warning"
+                                   onclick="return confirm('Clone this gallery?')">Clone</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
