@@ -640,14 +640,13 @@ while ($row = $result->fetch_assoc()) {
                         <th>Preview</th>
                         <th>Title / Slug</th>
                         <th>YouTube</th>
-                        <th>Media</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($galleries)): ?>
-                        <tr><td colspan="6" class="text-center text-muted py-4">No galleries yet. Create one above.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted py-4">No galleries yet. Create one above.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($galleries as $g): ?>
                         <tr>
@@ -667,7 +666,6 @@ while ($row = $result->fetch_assoc()) {
                                 </small>
                             </td>
                             <td><small class="text-truncate d-inline-block" style="max-width:150px"><?= htmlspecialchars($g['youtube_url']) ?></small></td>
-                            <td><span class="badge bg-info"><?= $g['media_count'] ?> files</span></td>
                             <td><small><?= date('M j, Y', strtotime($g['created_at'])) ?></small></td>
                             <td>
                                 <a href="?edit=<?= $g['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
